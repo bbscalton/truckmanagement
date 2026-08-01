@@ -43,6 +43,8 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
     private var stopsListener: ListenerRegistration? = null
     private lateinit var contentTitle: TextView
     private lateinit var contentBody: TextView
+    private lateinit var statusLine: TextView
+    private lateinit var contentCard: View
     private lateinit var mapContainer: View
     private var currentSection = "live_map"
 
@@ -56,6 +58,8 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         val nav = findViewById<NavigationView>(R.id.navView)
         contentTitle = findViewById(R.id.contentTitle)
         contentBody = findViewById(R.id.contentBody)
+        statusLine = findViewById(R.id.statusLine)
+        contentCard = findViewById(R.id.contentCard)
         mapContainer = findViewById(R.id.mapContainer)
 
         val toggle = ActionBarDrawerToggle(this, drawer, toolbar, R.string.app_name, R.string.app_name)
@@ -107,7 +111,22 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         contentBody.setOnLongClickListener(null)
         val showMap = section == "live_map" || section == "playback" || section == "stops"
         mapContainer.visibility = if (showMap) View.VISIBLE else View.GONE
+        contentCard.visibility = if (section == "live_map") View.GONE else View.VISIBLE
         contentBody.visibility = if (showMap && section == "live_map") View.GONE else View.VISIBLE
+        statusLine.text = when (section) {
+            "live_map" -> "Satellite live tracking"
+            "trucks" -> "Fleet trucks"
+            "drivers" -> "Paired drivers"
+            "requests" -> "Open delivery requests"
+            "deliveries" -> "Active deliveries"
+            "playback" -> "Trip route replay"
+            "stops" -> "Recent driver stops"
+            "payments" -> "Accepted payments"
+            "totals" -> "Fleet lifetime totals"
+            "activity" -> "Monitored activity"
+            "settings" -> "Account & fleet ID"
+            else -> "TruckMgmt operations"
+        }
 
         when (section) {
             "live_map" -> {
@@ -409,6 +428,9 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
                 val gmap = map ?: return@addSnapshotListener
                 // Keep stop markers if on stops; otherwise refresh truck markers
                 if (currentSection == "live_map") {
+                    val online = snap?.documents?.count { it.getBoolean("online") == true } ?: 0
+                    val total = snap?.size ?: 0
+                    statusLine.text = "$online of $total drivers online · Satellite live tracking"
                     gmap.clear()
                     snap?.documents?.forEach { d ->
                         val lat = d.getDouble("lastLat") ?: return@forEach

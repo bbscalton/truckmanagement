@@ -4,7 +4,13 @@
     <color name="brand_primary_dark">#0E2F45</color>
     <color name="brand_accent">#E67E22</color>
     <color name="surface">#FFFFFF</color>
-    <color name="app_bg">#F4F7FA</color>
+    <color name="surface_elevated">#F4F7FA</color>
+    <color name="app_bg">#0F2435</color>
+    <color name="app_bg_light">#EEF3F7</color>
+    <color name="sidebar_bg">#0A1929</color>
     <color name="text_primary">#1A1A1A</color>
+    <color name="text_on_dark">#E8EEF4</color>
+    <color name="text_muted">#8FA3B8</color>
+    <color name="status_online">#2ECC71</color>
     <color name="danger_red">#C0392B</color>
 </resources>
