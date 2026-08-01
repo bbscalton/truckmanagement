@@ -45,25 +45,21 @@ class AuthActivity : AppCompatActivity() {
                     val name = fleetName.text.toString().trim().ifEmpty { "My Fleet" }
                     val result = auth.createUserWithEmailAndPassword(emailStr, pass).await()
                     val uid = result.user?.uid ?: return@launch
-                    val fleetRef = db.collection(TruckMgmtConstants.COL_FLEETS).document()
-                    fleetRef.set(
-                        mapOf(
-                            "ownerUid" to uid,
-                            "name" to name,
-                            "createdAt" to FieldValue.serverTimestamp(),
-                            "tripCount" to 0,
-                            "totalRevenue" to 0.0,
-                        )
-                    ).await()
+                    val fleetId = FleetCreateHelper.createFleetWithShortId(db, uid, name)
                     db.collection(TruckMgmtConstants.COL_DISPATCHER_PROFILES).document(uid).set(
                         mapOf(
                             "email" to emailStr,
                             "displayName" to emailStr.substringBefore("@"),
-                            "fleetIds" to listOf(fleetRef.id),
-                            "primaryFleetId" to fleetRef.id,
+                            "fleetIds" to listOf(fleetId),
+                            "primaryFleetId" to fleetId,
                             "createdAt" to FieldValue.serverTimestamp(),
                         )
                     ).await()
+                    Toast.makeText(
+                        this@AuthActivity,
+                        "Fleet created! Your fleet ID is $fleetId — share it with customers.",
+                        Toast.LENGTH_LONG,
+                    ).show()
                     goDashboard()
                 } catch (e: Exception) {
                     Toast.makeText(this@AuthActivity, e.message, Toast.LENGTH_LONG).show()

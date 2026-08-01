@@ -15,7 +15,7 @@
 
     <EditText android:id="@+id/inputEmail" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Email" android:inputType="textEmailAddress" />
     <EditText android:id="@+id/inputPassword" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Password" android:inputType="textPassword" />
-    <EditText android:id="@+id/inputFleetId" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Fleet ID (register)" android:layout_marginBottom="12dp" />
+    <EditText android:id="@+id/inputFleetId" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Fleet ID (6 chars, register)" android:inputType="textCapCharacters" android:layout_marginBottom="12dp" />
     <Button android:id="@+id/btnLogin" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Sign in" />
     <Button android:id="@+id/btnRegister" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Register" style="@style/Widget.Material3.Button.OutlinedButton" />
 </LinearLayout>

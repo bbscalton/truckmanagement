@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { createUserWithEmailAndPassword } from 'firebase/auth'
 import { doc, setDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, COL, db } from '../firebase'
+import { createFleetWithShortId } from '../lib/fleetId'
 
 export function RegisterPage() {
   const navigate = useNavigate()
@@ -16,19 +17,12 @@ export function RegisterPage() {
     setError('')
     try {
       const cred = await createUserWithEmailAndPassword(auth, email.trim(), password)
-      const fleetRef = doc(db, COL.fleets, crypto.randomUUID().replace(/-/g, '').slice(0, 20))
-      await setDoc(fleetRef, {
-        ownerUid: cred.user.uid,
-        name: fleetName.trim() || 'My Fleet',
-        createdAt: serverTimestamp(),
-        tripCount: 0,
-        totalRevenue: 0,
-      })
+      const fleetId = await createFleetWithShortId(cred.user.uid, fleetName.trim() || 'My Fleet')
       await setDoc(doc(db, COL.dispatcherProfiles, cred.user.uid), {
         email: email.trim(),
         displayName: email.trim().split('@')[0],
-        fleetIds: [fleetRef.id],
-        primaryFleetId: fleetRef.id,
+        fleetIds: [fleetId],
+        primaryFleetId: fleetId,
         createdAt: serverTimestamp(),
       })
       navigate('/')

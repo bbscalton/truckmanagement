@@ -87,10 +87,21 @@ service cloud.firestore {
       allow update: if signedIn() && request.auth.uid == uid;
     }
 
+    function customerProfileFleetValid(fleetId) {
+      return fleetId is string
+        && fleetId.size() > 0
+        && exists(/databases/$(database)/documents/fleets/$(fleetId));
+    }
+
+    function validCustomerProfileWrite() {
+      return !('primaryFleetId' in request.resource.data)
+        || customerProfileFleetValid(request.resource.data.primaryFleetId);
+    }
+
     match /customerProfiles/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid || true);
-      allow create: if signedIn() && request.auth.uid == uid;
-      allow update: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid && validCustomerProfileWrite();
+      allow update: if signedIn() && request.auth.uid == uid && validCustomerProfileWrite();
     }
 
     match /pairingCodes/{code} {
@@ -147,7 +158,11 @@ service cloud.firestore {
       match /customers/{customerId} {
         allow read: if isFleetDispatcher(fleetId)
           || (signedIn() && request.auth.uid == customerId);
-        allow write: if isFleetDispatcher(fleetId)
+        allow create: if isFleetDispatcher(fleetId)
+          || (signedIn()
+            && request.auth.uid == customerId
+            && exists(/databases/$(database)/documents/fleets/$(fleetId)));
+        allow update, delete: if isFleetDispatcher(fleetId)
           || (signedIn() && request.auth.uid == customerId);
       }
 

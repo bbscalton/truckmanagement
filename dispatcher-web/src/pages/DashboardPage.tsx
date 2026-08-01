@@ -18,7 +18,7 @@ import {
 import { signOut } from 'firebase/auth'
 import { useAuth } from '../AuthContext'
 import { auth, COL, db } from '../firebase'
-import { createSatelliteMap, loadGoogleMaps } from '../lib/googleMaps'
+import { initFleetMap, type FleetMapHandle, type LatLng } from '../lib/fleetMap'
 
 type Section =
   | 'live_map'
@@ -84,10 +84,10 @@ export function DashboardPage() {
   const [pairCode, setPairCode] = useState('')
   const [truckLabel, setTruckLabel] = useState('')
   const [mapError, setMapError] = useState<string | null>(null)
+  const [mapReady, setMapReady] = useState(0)
+  const [copied, setCopied] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
-  const mapObj = useRef<google.maps.Map | null>(null)
-  const markersRef = useRef<google.maps.Marker[]>([])
-  const polyRef = useRef<google.maps.Polyline | null>(null)
+  const mapObj = useRef<FleetMapHandle | null>(null)
 
   const showMap = section === 'live_map' || section === 'playback' || section === 'stops'
 
@@ -101,18 +101,20 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (!showMap || !mapRef.current) return
-    let cancelled = false
     setMapError(null)
-    loadGoogleMaps()
-      .then(() => {
-        if (cancelled || !mapRef.current) return
-        if (!mapObj.current) {
-          mapObj.current = createSatelliteMap(mapRef.current)
-        }
+    try {
+      mapObj.current?.destroy()
+      mapObj.current = initFleetMap(mapRef.current)
+      requestAnimationFrame(() => {
+        mapObj.current?.map.invalidateSize()
+        setMapReady((n) => n + 1)
       })
-      .catch((e) => setMapError(e instanceof Error ? e.message : 'Google Maps failed to load.'))
+    } catch (e) {
+      setMapError(e instanceof Error ? e.message : 'Map failed to load.')
+    }
     return () => {
-      cancelled = true
+      mapObj.current?.destroy()
+      mapObj.current = null
     }
   }, [showMap])
 
@@ -124,36 +126,32 @@ export function DashboardPage() {
     let unsub: Unsubscribe | undefined
 
     const clearOverlays = () => {
-      markersRef.current.forEach((m) => m.setMap(null))
-      markersRef.current = []
-      polyRef.current?.setMap(null)
-      polyRef.current = null
+      mapObj.current?.clearLayers()
     }
 
     const run = async () => {
       if (section === 'live_map') {
         setBody('Satellite live map — all fleet trucks.')
         unsub = onSnapshot(collection(db, COL.fleets, fleetId, COL.drivers), (snap) => {
-          if (!mapObj.current) return
-          clearOverlays()
-          snap.docs.forEach((d) => {
+          const fleetMap = mapObj.current
+          if (!fleetMap) return
+          const drivers = snap.docs.flatMap((d) => {
             const lat = d.get('lastLat') as number | undefined
             const lng = d.get('lastLng') as number | undefined
-            if (lat == null || lng == null) return
-            const marker = new google.maps.Marker({
-              map: mapObj.current!,
-              position: { lat, lng },
-              title: (d.get('displayName') as string) || 'Driver',
-              label: d.get('online') ? '●' : '○',
-            })
-            markersRef.current.push(marker)
+            if (lat == null || lng == null) return []
+            return [
+              {
+                lat,
+                lng,
+                title: (d.get('displayName') as string) || 'Driver',
+                online: Boolean(d.get('online')),
+              },
+            ]
           })
+          fleetMap.setMarkers(drivers)
           const first = snap.docs.find((d) => d.get('lastLat') != null)
           if (first) {
-            mapObj.current!.setCenter({
-              lat: first.get('lastLat') as number,
-              lng: first.get('lastLng') as number,
-            })
+            fleetMap.setCenter(first.get('lastLat') as number, first.get('lastLng') as number)
           }
         })
         return
@@ -231,16 +229,12 @@ export function DashboardPage() {
             const lng = d.get('lng') as number | undefined
             return lat != null && lng != null ? { lat, lng } : null
           })
-          .filter(Boolean) as google.maps.LatLngLiteral[]
+          .filter(Boolean) as LatLng[]
         if (path.length) {
-          polyRef.current = new google.maps.Polyline({
-            path,
-            map: mapObj.current,
-            strokeColor: '#E67E22',
-            strokeWeight: 5,
-          })
-          mapObj.current.setCenter(path[path.length - 1])
-          mapObj.current.setZoom(14)
+          const fleetMap = mapObj.current
+          fleetMap.drawPolyline(path)
+          const last = path[path.length - 1]
+          fleetMap.setCenter(last.lat, last.lng, 14)
         }
         return
       }
@@ -248,21 +242,15 @@ export function DashboardPage() {
       if (section === 'stops') {
         unsub = onSnapshot(query(collection(db, COL.fleets, fleetId, COL.stops), limit(50)), (snap) => {
           setBody(snap.empty ? 'No stops recorded.' : `${snap.size} recent stops on map.`)
-          if (!mapObj.current) return
-          clearOverlays()
-          snap.docs.forEach((d) => {
+          const fleetMap = mapObj.current
+          if (!fleetMap) return
+          const stops = snap.docs.flatMap((d) => {
             const lat = d.get('lat') as number | undefined
             const lng = d.get('lng') as number | undefined
-            if (lat == null || lng == null) return
-            markersRef.current.push(
-              new google.maps.Marker({
-                map: mapObj.current!,
-                position: { lat, lng },
-                title: 'Stop',
-                icon: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
-              }),
-            )
+            if (lat == null || lng == null) return []
+            return [{ lat, lng }]
           })
+          fleetMap.setStopMarkers(stops)
         })
         return
       }
@@ -311,13 +299,16 @@ export function DashboardPage() {
       }
 
       if (section === 'settings') {
-        setBody(`Fleet ID: ${fleetId}\nEmail: ${user?.email}\nName: ${profile?.displayName ?? '—'}`)
+        setBody(
+          `Fleet ID: ${fleetId}\nShare this code with customers (Customer app → Register or Profile).\nEmail: ${user?.email}\nName: ${profile?.displayName ?? '—'}`,
+        )
+        return
       }
     }
 
     void run()
     return () => unsub?.()
-  }, [section, fleetId, user, profile])
+  }, [section, fleetId, user, profile, mapReady])
 
   const createPairCode = async () => {
     if (!fleetId) return
@@ -370,6 +361,13 @@ export function DashboardPage() {
     await setDoc(deliveryRef, data)
     await updateDoc(req.ref, { status: 'assigned', deliveryId: deliveryRef.id, assignedDriverId: driver.id })
     setSection('deliveries')
+  }
+
+  const copyFleetId = async () => {
+    if (!fleetId) return
+    await navigator.clipboard.writeText(fleetId)
+    setCopied(true)
+    window.setTimeout(() => setCopied(false), 2000)
   }
 
   const sendChat = async () => {
@@ -450,6 +448,12 @@ export function DashboardPage() {
           {section === 'requests' && (
             <div className="actions">
               <button onClick={() => void assignFirstRequest()}>Assign first request to online driver</button>
+            </div>
+          )}
+
+          {section === 'settings' && fleetId && (
+            <div className="actions">
+              <button onClick={() => void copyFleetId()}>{copied ? 'Copied!' : 'Copy fleet ID'}</button>
             </div>
           )}
 

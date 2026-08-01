@@ -25,7 +25,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.google.firebase.firestore.FirebaseFirestoreException
 import com.truckmgmt.shared.DeliveryStatusLabels
+import com.truckmgmt.shared.FleetIdGenerator
 import com.truckmgmt.shared.TruckMgmtConstants
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -69,9 +71,7 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                     if (id == null) Toast.makeText(this, "No active delivery", Toast.LENGTH_SHORT).show()
                     else startActivity(Intent(this, TripChatActivity::class.java).putExtra("deliveryId", id))
                 }
-                R.id.nav_profile -> {
-                    infoText.text = "Signed in as ${auth.currentUser?.email}\nFleet: $fleetId"
-                }
+                R.id.nav_profile -> showProfileOrLinkFleet()
                 R.id.nav_logout -> {
                     auth.signOut()
                     startActivity(Intent(this, AuthActivity::class.java))
@@ -93,9 +93,62 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
     private suspend fun loadProfile() {
         val uid = auth.currentUser?.uid ?: return
         val profile = db.collection(TruckMgmtConstants.COL_CUSTOMER_PROFILES).document(uid).get().await()
-        fleetId = profile.getString("primaryFleetId")
-        infoText.text = "Fleet: ${fleetId ?: "link a fleet ID in profile"}"
-        listenMyDeliveries()
+        fleetId = profile.getString("primaryFleetId")?.takeIf { it.isNotBlank() }
+        infoText.text = fleetDisplayText()
+        if (fleetId != null) {
+            listenMyDeliveries()
+        } else {
+            showLinkFleetDialog()
+        }
+    }
+
+    private fun fleetDisplayText(): String {
+        val fleetLine = fleetId?.let { "Fleet: $it" } ?: "Fleet: not linked — tap Profile to enter your fleet ID"
+        return "$fleetLine\nSigned in as ${auth.currentUser?.email}"
+    }
+
+    private fun showProfileOrLinkFleet() {
+        infoText.text = fleetDisplayText()
+        if (fleetId == null) showLinkFleetDialog()
+    }
+
+    private fun showLinkFleetDialog() {
+        val input = EditText(this).apply {
+            hint = "Fleet ID (6 characters)"
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
+            setText(fleetId.orEmpty())
+        }
+        AlertDialog.Builder(this)
+            .setTitle("Link to fleet")
+            .setMessage("Enter the fleet ID from your dispatcher (Settings → Fleet ID).")
+            .setView(input)
+            .setPositiveButton("Link") { _, _ ->
+                val uid = auth.currentUser?.uid ?: return@setPositiveButton
+                val email = auth.currentUser?.email ?: return@setPositiveButton
+                lifecycleScope.launch {
+                    try {
+                        fleetId = FleetLinkHelper.linkCustomerToFleet(
+                            db, uid, email, FleetIdGenerator.normalize(input.text.toString()),
+                        )
+                        infoText.text = fleetDisplayText()
+                        listenMyDeliveries()
+                        Toast.makeText(this@CustomerHomeActivity, "Linked to fleet $fleetId", Toast.LENGTH_SHORT).show()
+                    } catch (e: FleetNotFoundException) {
+                        Toast.makeText(this@CustomerHomeActivity, e.message, Toast.LENGTH_LONG).show()
+                    } catch (e: FirebaseFirestoreException) {
+                        val msg = when (e.code) {
+                            FirebaseFirestoreException.Code.PERMISSION_DENIED ->
+                                "Permission denied linking to fleet. Contact your dispatcher."
+                            else -> e.message ?: "Could not link fleet"
+                        }
+                        Toast.makeText(this@CustomerHomeActivity, msg, Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(this@CustomerHomeActivity, e.message ?: "Could not link fleet", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onMapReady(googleMap: GoogleMap) {

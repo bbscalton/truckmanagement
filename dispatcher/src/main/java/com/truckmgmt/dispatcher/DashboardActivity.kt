@@ -1,5 +1,8 @@
 package com.truckmgmt.dispatcher
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.view.View
@@ -101,6 +104,7 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun showSection(section: String) {
         currentSection = section
+        contentBody.setOnLongClickListener(null)
         val showMap = section == "live_map" || section == "playback" || section == "stops"
         mapContainer.visibility = if (showMap) View.VISIBLE else View.GONE
         contentBody.visibility = if (showMap && section == "live_map") View.GONE else View.VISIBLE
@@ -154,7 +158,18 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
             }
             "settings" -> {
                 contentTitle.text = "Settings"
-                contentBody.text = "Fleet: ${fleetId ?: "—"}\nSigned in as ${auth.currentUser?.email}"
+                val fid = fleetId ?: "—"
+                contentBody.text =
+                    "Fleet ID: $fid\nShare this code with customers (Customer app → Register or Profile).\nLong-press here to copy.\n\nSigned in as ${auth.currentUser?.email}"
+                contentBody.setOnLongClickListener {
+                    val id = fleetId
+                    if (!id.isNullOrBlank()) {
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        clipboard.setPrimaryClip(ClipData.newPlainText("Fleet ID", id))
+                        Toast.makeText(this, "Fleet ID copied", Toast.LENGTH_SHORT).show()
+                    }
+                    true
+                }
             }
         }
     }
