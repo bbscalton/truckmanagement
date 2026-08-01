@@ -1,0 +1,56 @@
+- --api-target:
+    service: maps-backend.googleapis.com
+- --api-target:
+    service: firebasedatabase.googleapis.com
+- --api-target:
+    service: firebasehosting.googleapis.com
+- --api-target:
+    service: firebaserules.googleapis.com
+- --api-target:
+    service: sqladmin.googleapis.com
+- --api-target:
+    service: cloudconfig.googleapis.com
+- --api-target:
+    service: datastore.googleapis.com
+- --api-target:
+    service: fcmregistrations.googleapis.com
+- --api-target:
+    service: firebase.googleapis.com
+- --api-target:
+    service: firebaseappcheck.googleapis.com
+- --api-target:
+    service: firebaseappdistribution.googleapis.com
+- --api-target:
+    service: firebaseapphosting.googleapis.com
+- --api-target:
+    service: firebaseapptesters.googleapis.com
+- --api-target:
+    service: firebasedataconnect.googleapis.com
+- --api-target:
+    service: firebaseinappmessaging.googleapis.com
+- --api-target:
+    service: firebaseinstallations.googleapis.com
+- --api-target:
+    service: firebaseml.googleapis.com
+- --api-target:
+    service: firebaseremoteconfig.googleapis.com
+- --api-target:
+    service: firebaseremoteconfigrealtime.googleapis.com
+- --api-target:
+    service: firebasestorage.googleapis.com
+- --api-target:
+    service: firebasevertexai.googleapis.com
+- --api-target:
+    service: firestore.googleapis.com
+- --api-target:
+    service: identitytoolkit.googleapis.com
+- --api-target:
+    service: logging.googleapis.com
+- --api-target:
+    service: mlkit.googleapis.com
+- --api-target:
+    service: play.googleapis.com
+- --api-target:
+    service: securetoken.googleapis.com
+- --api-target:
+    service: fpnv.googleapis.com

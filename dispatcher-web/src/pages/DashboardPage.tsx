@@ -83,6 +83,7 @@ export function DashboardPage() {
   const [pairName, setPairName] = useState('Driver')
   const [pairCode, setPairCode] = useState('')
   const [truckLabel, setTruckLabel] = useState('')
+  const [mapError, setMapError] = useState<string | null>(null)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapObj = useRef<google.maps.Map | null>(null)
   const markersRef = useRef<google.maps.Marker[]>([])
@@ -101,6 +102,7 @@ export function DashboardPage() {
   useEffect(() => {
     if (!showMap || !mapRef.current) return
     let cancelled = false
+    setMapError(null)
     loadGoogleMaps()
       .then(() => {
         if (cancelled || !mapRef.current) return
@@ -108,7 +110,7 @@ export function DashboardPage() {
           mapObj.current = createSatelliteMap(mapRef.current)
         }
       })
-      .catch((e) => setBody(String(e)))
+      .catch((e) => setMapError(e instanceof Error ? e.message : 'Google Maps failed to load.'))
     return () => {
       cancelled = true
     }
@@ -425,7 +427,12 @@ export function DashboardPage() {
           <span className="muted small">{fleetId}</span>
         </header>
 
-        {showMap && <div className="map-panel" ref={mapRef} />}
+        {showMap && (
+          <div className="map-panel-wrap">
+            <div className="map-panel" ref={mapRef} />
+            {mapError && <p className="map-error">{mapError}</p>}
+          </div>
+        )}
 
         <section className="content-panel">
           <pre className="body-pre">{body}</pre>
