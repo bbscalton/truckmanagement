@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function dispatcherProfile() {
+      return get(/databases/$(database)/documents/dispatcherProfiles/$(request.auth.uid)).data;
+    }
+
+    function customerProfile() {
+      return get(/databases/$(database)/documents/customerProfiles/$(request.auth.uid)).data;
+    }
+
+    function fleetDoc(fleetId) {
+      return get(/databases/$(database)/documents/fleets/$(fleetId)).data;
+    }
+
+    function isFleetOwner(fleetId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/fleets/$(fleetId))
+        && fleetDoc(fleetId).get('ownerUid', '') == request.auth.uid;
+    }
+
+    function isFleetDispatcher(fleetId) {
+      return isFleetOwner(fleetId)
+        || (signedIn()
+          && exists(/databases/$(database)/documents/dispatcherProfiles/$(request.auth.uid))
+          && fleetId in dispatcherProfile().get('fleetIds', []));
+    }
+
+    function isDeviceMember(fleetId, deviceId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/fleets/$(fleetId)/devices/$(deviceId))
+        && get(/databases/$(database)/documents/fleets/$(fleetId)/devices/$(deviceId)).data.authUid
+          == request.auth.uid;
+    }
+
+    function isFleetDriver(fleetId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/fleets/$(fleetId)/drivers/$(request.auth.uid));
+    }
+
+    function isFleetCustomer(fleetId) {
+      return signedIn()
+        && (exists(/databases/$(database)/documents/fleets/$(fleetId)/customers/$(request.auth.uid))
+          || (exists(/databases/$(database)/documents/customerProfiles/$(request.auth.uid))
+            && fleetId in customerProfile().get('fleetIds', [])));
+    }
+
+    function isFleetMember(fleetId) {
+      return isFleetDispatcher(fleetId) || isFleetDriver(fleetId) || isFleetCustomer(fleetId);
+    }
+
+    match /dispatcherProfiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid);
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /customerProfiles/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || true);
+      allow create: if signedIn() && request.auth.uid == uid;
+      allow update: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /pairingCodes/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if signedIn();
+    }
+
+    match /inviteCodes/{code} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn();
+      allow delete: if isFleetDispatcher(resource.data.fleetId);
+    }
+
+    match /fleets/{fleetId} {
+      allow create: if signedIn()
+        && request.resource.data.get('ownerUid', '') == request.auth.uid;
+      allow read: if isFleetMember(fleetId);
+      allow update: if isFleetDispatcher(fleetId);
+      allow delete: if isFleetOwner(fleetId);
+
+      match /trucks/{truckId} {
+        allow read: if isFleetMember(fleetId);
+        allow write: if isFleetDispatcher(fleetId);
+      }
+
+      match /drivers/{driverId} {
+        allow read: if isFleetMember(fleetId);
+        allow create, update: if isFleetDispatcher(fleetId)
+          || (signedIn() && request.auth.uid == driverId);
+        allow delete: if isFleetDispatcher(fleetId);
+      }
+
+      match /devices/{deviceId} {
+        allow read: if isFleetDispatcher(fleetId) || isDeviceMember(fleetId, deviceId);
+        allow create, update: if isFleetDispatcher(fleetId) || isDeviceMember(fleetId, deviceId);
+        allow delete: if isFleetDispatcher(fleetId);
+      }
+
+      match /customers/{customerId} {
+        allow read: if isFleetDispatcher(fleetId)
+          || (signedIn() && request.auth.uid == customerId);
+        allow write: if isFleetDispatcher(fleetId)
+          || (signedIn() && request.auth.uid == customerId);
+      }
+
+      match /deliveryRequests/{requestId} {
+        allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId)
+          || (signedIn() && resource.data.get('customerUid', '') == request.auth.uid);
+        allow create: if isFleetCustomer(fleetId) || isFleetDispatcher(fleetId);
+        allow update: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId)
+          || (signedIn() && resource.data.get('customerUid', '') == request.auth.uid);
+      }
+
+      match /deliveries/{deliveryId} {
+        allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId)
+          || (signedIn() && resource.data.get('customerUid', '') == request.auth.uid);
+        allow create, update: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId)
+          || (signedIn() && request.resource.data.get('customerUid', '') == request.auth.uid);
+      }
+
+      match /locationTrail/{pointId} {
+        allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+        allow create: if isFleetDriver(fleetId) || isFleetDispatcher(fleetId);
+        allow update, delete: if isFleetDispatcher(fleetId);
+      }
+
+      match /trips/{tripId} {
+        allow read: if isFleetDispatcher(fleetId)
+          || (isFleetDriver(fleetId) && resource.data.get('driverId', '') == request.auth.uid)
+          || (signedIn() && resource.data.get('customerUid', '') == request.auth.uid);
+        allow write: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+      }
+
+      match /payments/{paymentId} {
+        // Dispatcher may only read after driver accepted (visibleToDispatcher == true)
+        allow read: if isFleetDriver(fleetId)
+          || (signedIn() && resource.data.get('customerUid', '') == request.auth.uid)
+          || (isFleetDispatcher(fleetId) && resource.data.get('visibleToDispatcher', false) == true);
+        allow create: if signedIn();
+        allow update: if isFleetDriver(fleetId)
+          || (signedIn() && resource.data.get('customerUid', '') == request.auth.uid);
+      }
+
+      match /fleetChat/{messageId} {
+        allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+        allow create: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+      }
+
+      match /tripChat/{deliveryId}/messages/{messageId} {
+        allow read, create: if isFleetMember(fleetId);
+      }
+
+      match /commands/{commandId} {
+        allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+        allow create, update: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+      }
+
+      match /stops/{stopId} {
+        allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+        allow create: if isFleetDriver(fleetId) || isFleetDispatcher(fleetId);
+        allow update, delete: if isFleetDispatcher(fleetId);
+      }
+
+      match /activityLogs/{logId} {
+        allow read: if isFleetDispatcher(fleetId);
+        allow create: if isFleetDriver(fleetId) || isFleetDispatcher(fleetId);
+      }
+    }
+  }
+}

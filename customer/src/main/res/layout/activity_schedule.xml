@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Schedule delivery" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="12dp" />
+        <EditText android:id="@+id/inputPickup" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Pickup address" />
+        <EditText android:id="@+id/inputDropoff" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Dropoff address" />
+        <EditText android:id="@+id/inputWhen" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="When (e.g. Tomorrow 2pm)" />
+        <EditText android:id="@+id/inputNotes" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Notes" />
+        <EditText android:id="@+id/inputPickupLat" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Pickup lat (optional)" android:inputType="numberDecimal|numberSigned" />
+        <EditText android:id="@+id/inputPickupLng" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Pickup lng (optional)" android:inputType="numberDecimal|numberSigned" />
+        <EditText android:id="@+id/inputCustomerLat" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Your lat (optional)" android:inputType="numberDecimal|numberSigned" />
+        <EditText android:id="@+id/inputCustomerLng" android:layout_width="match_parent" android:layout_height="wrap_content" android:hint="Your lng (optional)" android:inputType="numberDecimal|numberSigned" />
+        <Button android:id="@+id/btnSubmit" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Submit request" android:layout_marginTop="12dp" />
+    </LinearLayout>
+</ScrollView>

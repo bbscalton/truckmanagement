@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_map" android:title="Map" />
+    <item android:id="@+id/nav_jobs" android:title="My jobs" />
+    <item android:id="@+id/nav_arrive" android:title="Mark arrived" />
+    <item android:id="@+id/nav_deliver" android:title="Mark delivered" />
+    <item android:id="@+id/nav_chat" android:title="Chat" />
+    <item android:id="@+id/nav_payments" android:title="Accept payment" />
+    <item android:id="@+id/nav_online" android:title="Toggle online" />
+</menu>

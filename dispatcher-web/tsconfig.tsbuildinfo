@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/authcontext.tsx","./src/firebase.ts","./src/main.tsx","./src/vite-env.d.ts","./src/lib/googlemaps.ts","./src/pages/dashboardpage.tsx","./src/pages/loginpage.tsx","./src/pages/registerpage.tsx","./tcd.tsx"],"errors":true,"version":"5.9.3"}

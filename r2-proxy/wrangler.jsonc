@@ -1,0 +1,31 @@
+{
+  "$schema": "../functions/node_modules/wrangler/config-schema.json",
+  "name": "truckmgmt-media-proxy",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-07-30",
+  "vars": {
+    "FIREBASE_PROJECT_ID": "truckmgmt-dev",
+    "FIREBASE_AUTH_DOMAIN": "truckmgmt-dev.firebaseapp.com",
+    "WENT_DARK_AFTER_MS": "300000"
+  },
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "truckmgmt-uploads"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "truckmgmt-ops",
+      "database_id": "9743ffca-070f-4ef5-a3d9-e320f6a5fdf9",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    {
+      "binding": "EDGE_CACHE",
+      "id": "2c5b04d9affb4a489e55072086867d3f"
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+# Copy secrets into local.properties (gitignored).
+# MAPS_API_KEY=your_google_maps_android_key

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:id="@+id/grp_fleet" android:checkableBehavior="single">
+        <item android:id="@+id/nav_live_map" android:title="Live map" />
+        <item android:id="@+id/nav_trucks" android:title="Trucks" />
+        <item android:id="@+id/nav_drivers" android:title="Drivers" />
+        <item android:id="@+id/nav_pair" android:title="Pair device" />
+    </group>
+    <group android:id="@+id/grp_ops">
+        <item android:id="@+id/nav_requests" android:title="Requests" />
+        <item android:id="@+id/nav_deliveries" android:title="Active deliveries" />
+        <item android:id="@+id/nav_playback" android:title="Trip playback" />
+        <item android:id="@+id/nav_stops" android:title="Stops" />
+    </group>
+    <group android:id="@+id/grp_money">
+        <item android:id="@+id/nav_payments" android:title="Payments" />
+        <item android:id="@+id/nav_totals" android:title="Trip totals" />
+    </group>
+    <group android:id="@+id/grp_comms">
+        <item android:id="@+id/nav_chat" android:title="Fleet chat" />
+        <item android:id="@+id/nav_activity" android:title="Monitored activity" />
+    </group>
+    <group android:id="@+id/grp_account">
+        <item android:id="@+id/nav_settings" android:title="Settings" />
+        <item android:id="@+id/nav_logout" android:title="Sign out" />
+    </group>
+</menu>

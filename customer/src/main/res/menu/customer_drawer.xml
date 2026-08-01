@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:id="@+id/nav_map" android:title="Map" />
+    <item android:id="@+id/nav_schedule" android:title="Schedule delivery" />
+    <item android:id="@+id/nav_deliveries" android:title="My deliveries" />
+    <item android:id="@+id/nav_track" android:title="Track truck" />
+    <item android:id="@+id/nav_pay" android:title="Pay / confirm amount" />
+    <item android:id="@+id/nav_chat" android:title="Chat" />
+    <item android:id="@+id/nav_profile" android:title="Profile" />
+    <item android:id="@+id/nav_logout" android:title="Sign out" />
+</menu>
