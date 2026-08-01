@@ -35,6 +35,9 @@ class PairingActivity : AppCompatActivity() {
                 Toast.makeText(this, "Enter pairing code", Toast.LENGTH_SHORT).show()
                 return
             }
+            if (auth.currentUser == null) {
+                auth.signInAnonymously().await()
+            }
             val codeRef = db.collection(TruckMgmtConstants.COL_PAIRING_CODES).document(code)
             val codeDoc = codeRef.get().await()
             if (!codeDoc.exists()) {
@@ -53,9 +56,6 @@ class PairingActivity : AppCompatActivity() {
             val fleetId = codeDoc.getString("fleetId") ?: return
             val driverName = codeDoc.getString("driverName") ?: "Driver"
 
-            if (auth.currentUser == null) {
-                auth.signInAnonymously().await()
-            }
             val uid = auth.currentUser?.uid ?: return
             val deviceId = UUID.randomUUID().toString()
 
@@ -67,6 +67,7 @@ class PairingActivity : AppCompatActivity() {
                         "deviceId" to deviceId,
                         "online" to false,
                         "authUid" to uid,
+                        "pairingCode" to code,
                         "pairedAt" to FieldValue.serverTimestamp(),
                     )
                 ).await()

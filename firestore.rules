@@ -53,6 +53,34 @@ service cloud.firestore {
       return isFleetDispatcher(fleetId) || isFleetDriver(fleetId) || isFleetCustomer(fleetId);
     }
 
+    function pairingCodeData(code) {
+      return get(/databases/$(database)/documents/pairingCodes/$(code)).data;
+    }
+
+    function isValidUnusedPairingCode(code, fleetId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/pairingCodes/$(code))
+        && pairingCodeData(code).fleetId == fleetId
+        && pairingCodeData(code).used == false
+        && (pairingCodeData(code).get('expiresAt', 0) == 0
+          || pairingCodeData(code).expiresAt > request.time.toMillis());
+    }
+
+    function isClaimingPairingCode() {
+      return signedIn()
+        && resource.data.used == false
+        && request.resource.data.used == true
+        && request.resource.data.usedBy == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['used', 'usedBy', 'deviceId']);
+    }
+
+    function isSelfFleetDriver(fleetId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/fleets/$(fleetId)/drivers/$(request.auth.uid))
+        && get(/databases/$(database)/documents/fleets/$(fleetId)/drivers/$(request.auth.uid)).data
+          .get('authUid', '') == request.auth.uid;
+    }
+
     match /dispatcherProfiles/{uid} {
       allow read: if signedIn() && (request.auth.uid == uid);
       allow create: if signedIn() && request.auth.uid == uid;
@@ -67,9 +95,12 @@ service cloud.firestore {
 
     match /pairingCodes/{code} {
       allow read: if signedIn();
-      allow create: if signedIn();
-      allow update: if signedIn();
-      allow delete: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.fleetId != null
+        && isFleetDispatcher(request.resource.data.fleetId);
+      allow update: if signedIn()
+        && (isFleetDispatcher(resource.data.fleetId) || isClaimingPairingCode());
+      allow delete: if signedIn() && isFleetDispatcher(resource.data.fleetId);
     }
 
     match /inviteCodes/{code} {
@@ -93,14 +124,23 @@ service cloud.firestore {
 
       match /drivers/{driverId} {
         allow read: if isFleetMember(fleetId);
-        allow create, update: if isFleetDispatcher(fleetId)
+        allow create: if isFleetDispatcher(fleetId)
+          || (signedIn()
+            && request.auth.uid == driverId
+            && isValidUnusedPairingCode(request.resource.data.pairingCode, fleetId));
+        allow update: if isFleetDispatcher(fleetId)
           || (signedIn() && request.auth.uid == driverId);
         allow delete: if isFleetDispatcher(fleetId);
       }
 
       match /devices/{deviceId} {
         allow read: if isFleetDispatcher(fleetId) || isDeviceMember(fleetId, deviceId);
-        allow create, update: if isFleetDispatcher(fleetId) || isDeviceMember(fleetId, deviceId);
+        allow create: if isFleetDispatcher(fleetId)
+          || (signedIn()
+            && request.resource.data.authUid == request.auth.uid
+            && request.resource.data.driverId == request.auth.uid
+            && isSelfFleetDriver(fleetId));
+        allow update: if isFleetDispatcher(fleetId) || isDeviceMember(fleetId, deviceId);
         allow delete: if isFleetDispatcher(fleetId);
       }
 
