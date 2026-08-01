@@ -10,7 +10,6 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
 import com.truckmgmt.shared.FleetIdGenerator
-import com.truckmgmt.shared.TruckMgmtConstants
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
@@ -52,15 +51,6 @@ class AuthActivity : AppCompatActivity() {
                     return@launch
                 }
                 try {
-                    val fleetSnap = db.collection(TruckMgmtConstants.COL_FLEETS).document(fid).get().await()
-                    if (!fleetSnap.exists()) {
-                        Toast.makeText(
-                            this@AuthActivity,
-                            "Fleet \"$fid\" not found. Check the ID from your dispatcher.",
-                            Toast.LENGTH_LONG,
-                        ).show()
-                        return@launch
-                    }
                     val result = auth.createUserWithEmailAndPassword(emailStr, pass).await()
                     val uid = result.user?.uid ?: return@launch
                     try {
@@ -71,6 +61,8 @@ class AuthActivity : AppCompatActivity() {
                     }
                     goHome()
                 } catch (e: FleetNotFoundException) {
+                    Toast.makeText(this@AuthActivity, e.message, Toast.LENGTH_LONG).show()
+                } catch (e: FleetLinkPermissionException) {
                     Toast.makeText(this@AuthActivity, e.message, Toast.LENGTH_LONG).show()
                 } catch (e: FirebaseFirestoreException) {
                     val msg = when (e.code) {

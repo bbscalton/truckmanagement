@@ -142,6 +142,8 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                         ).show()
                     } catch (e: FleetNotFoundException) {
                         Toast.makeText(this@CustomerHomeActivity, e.message, Toast.LENGTH_LONG).show()
+                    } catch (e: FleetLinkPermissionException) {
+                        Toast.makeText(this@CustomerHomeActivity, e.message, Toast.LENGTH_LONG).show()
                     } catch (e: FirebaseFirestoreException) {
                         val msg = when (e.code) {
                             FirebaseFirestoreException.Code.PERMISSION_DENIED ->
