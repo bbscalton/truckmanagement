@@ -41,6 +41,45 @@ body {
   letter-spacing: -0.03em;
 }
 .lead { font-size: 18px; line-height: 1.5; max-width: 34em; color: #314352; }
+.downloads { margin-top: 40px; }
+.downloads h2 {
+  font-size: 22px;
+  margin: 0 0 8px;
+  letter-spacing: -0.02em;
+}
+.downloads-note {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.download-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px;
+}
+.download-card {
+  display: grid;
+  gap: 6px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--panel);
+  border: 1px solid #d7e0e8;
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.download-card:hover {
+  border-color: #1b4f72;
+  box-shadow: 0 8px 24px rgba(16, 36, 51, 0.08);
+}
+.download-label { font-weight: 700; font-size: 16px; }
+.download-detail { color: var(--muted); font-size: 13px; line-height: 1.4; }
+.download-action {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1b4f72;
+}
 .cta-row { margin-top: 28px; }
 .cta, button {
   display: inline-block;
