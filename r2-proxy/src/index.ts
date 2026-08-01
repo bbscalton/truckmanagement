@@ -70,12 +70,9 @@ async function probeD1(env: Env): Promise<{ status: Status; message: string; lat
 async function probeKv(env: Env): Promise<{ status: Status; message: string; latencyMs: number }> {
   const started = Date.now();
   try {
-    const existing = await env.EDGE_CACHE.get("__health_probe");
-    if (existing != null) {
-      return { status: "ok", message: "KV edge cache is reachable.", latencyMs: Date.now() - started };
-    }
-    await env.EDGE_CACHE.put("__health_probe", "1", { expirationTtl: 86400 });
-    return { status: "ok", message: "KV edge cache is reachable.", latencyMs: Date.now() - started };
+    // Read-only — never put() on health checks (avoids KV daily write limits).
+    await env.EDGE_CACHE.get("__health_probe");
+    return { status: "ok", message: "KV edge cache is reachable (read-only probe).", latencyMs: Date.now() - started };
   } catch (error) {
     return {
       status: "fail",

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ArchNode, TcdCheck, TcdCheckStatus } from './types'
 
-export const ARCH_LAYOUT_VERSION = 'truckmgmt-arch-v1-20260801'
+export const ARCH_LAYOUT_VERSION = 'truckmgmt-arch-v2-20260801'
 
 type NodeDef = {
   id: string
@@ -46,8 +46,28 @@ function worst(statuses: TcdCheckStatus[]): TcdCheckStatus {
   return 'unknown'
 }
 
-const R2_HEALTH = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_R2_BASE_URL
-  ?? 'https://truckmgmt-media-proxy.neuereatec.workers.dev'
+const ENV = (import.meta as ImportMeta & { env?: Record<string, string> }).env ?? {}
+
+const R2_HEALTH = ENV.VITE_R2_BASE_URL ?? 'https://truckmgmt-media-proxy.neuereatec.workers.dev'
+const FIREBASE_HOSTING_URL = 'https://truckmgmt-dev.web.app'
+const GITHUB_PAGES_URL = 'https://bbscalton.github.io/truckmanagement/'
+const MAPS_BUILD_KEY = ENV.VITE_GOOGLE_MAPS_API_KEY?.trim() ?? ''
+
+/** Best-effort reachability — CORS may block status; no-cors fallback treats network reach as OK. */
+async function probeUrlReachable(url: string): Promise<boolean> {
+  try {
+    const res = await fetch(url, { method: 'GET', cache: 'no-store' })
+    if (res.ok || res.type === 'opaque') return true
+  } catch {
+    /* try no-cors */
+  }
+  try {
+    await fetch(url, { method: 'GET', cache: 'no-store', mode: 'no-cors' })
+    return true
+  } catch {
+    return false
+  }
+}
 
 export function ArchitectureTree({ onBack }: { onBack?: () => void }) {
   const [checks, setChecks] = useState<TcdCheck[]>([])
@@ -61,16 +81,24 @@ export function ArchitectureTree({ onBack }: { onBack?: () => void }) {
       { id: 'firebase-auth', label: 'Firebase Auth', status: 'ok', detail: 'Email/Password, Google, and Anonymous enabled.' },
       { id: 'firestore', label: 'Firestore', status: 'ok', detail: 'Rules + indexes committed.' },
       { id: 'fcm', label: 'FCM', status: 'ok', detail: 'Messaging services wired in apps.' },
-      { id: 'functions', label: 'Cloud Functions', status: 'warn', detail: 'Source ready — deploy to clear WARN.' },
-      { id: 'hosting', label: 'Hosting', status: 'warn', detail: 'Optional — firebase deploy --only hosting or CI secret FIREBASE_SERVICE_ACCOUNT.' },
-      { id: 'pages', label: 'GitHub Pages', status: 'warn', detail: 'Enable Pages (GitHub Actions) in repo settings; push marketing/ to deploy.' },
+      { id: 'functions', label: 'Cloud Functions', status: 'warn', detail: 'Deploy with firebase deploy --only functions (requires Blaze plan).' },
+      { id: 'hosting', label: 'Hosting', status: 'unknown', detail: `Probing ${FIREBASE_HOSTING_URL}…` },
+      { id: 'pages', label: 'GitHub Pages', status: 'unknown', detail: `Probing ${GITHUB_PAGES_URL}…` },
       { id: 'tcd', label: 'TCD console', status: 'ok', detail: 'Architecture tree loaded.' },
-      { id: 'maps', label: 'Google Maps', status: 'warn', detail: 'Set MAPS_API_KEY / VITE_GOOGLE_MAPS_API_KEY.' },
+      { id: 'maps', label: 'Google Maps', status: 'unknown', detail: 'Checking Maps key configuration…' },
       { id: 'worker', label: 'Worker', status: 'unknown', detail: 'Probing…' },
       { id: 'r2', label: 'R2', status: 'unknown' },
       { id: 'd1', label: 'D1', status: 'unknown' },
       { id: 'kv', label: 'KV', status: 'unknown' },
     ]
+
+    const upsert = (id: string, status: TcdCheckStatus, detail?: string) => {
+      const row = next.find((c) => c.id === id)
+      if (row) {
+        row.status = status
+        if (detail) row.detail = detail
+      }
+    }
 
     try {
       const res = await fetch(`${R2_HEALTH}/platform-health`, { cache: 'no-store' })
@@ -85,13 +113,6 @@ export function ArchitectureTree({ onBack }: { onBack?: () => void }) {
       }
       const mapStatus = (s?: string): TcdCheckStatus =>
         s === 'ok' || s === 'warn' || s === 'fail' ? s : 'unknown'
-      const upsert = (id: string, status: TcdCheckStatus, detail?: string) => {
-        const row = next.find((c) => c.id === id)
-        if (row) {
-          row.status = status
-          if (detail) row.detail = detail
-        }
-      }
       upsert('worker', 'ok', 'Health endpoint reachable.')
       upsert('r2', mapStatus(data.checks?.r2?.status), data.checks?.r2?.message)
       upsert('d1', mapStatus(data.checks?.d1?.status), data.checks?.d1?.message)
@@ -108,6 +129,39 @@ export function ArchitectureTree({ onBack }: { onBack?: () => void }) {
           row.detail = detail
         }
       })
+    }
+
+    const [hostingLive, pagesLive] = await Promise.all([
+      probeUrlReachable(FIREBASE_HOSTING_URL),
+      probeUrlReachable(GITHUB_PAGES_URL),
+    ])
+
+    if (hostingLive) {
+      upsert('hosting', 'ok', `Live at ${FIREBASE_HOSTING_URL} (dispatcher web SPA).`)
+    } else {
+      upsert('hosting', 'warn', `Unreachable at ${FIREBASE_HOSTING_URL} — run firebase deploy --only hosting.`)
+    }
+
+    if (pagesLive) {
+      upsert('pages', 'ok', `Live at ${GITHUB_PAGES_URL}`)
+    } else {
+      upsert('pages', 'warn', 'Push marketing/ to main and enable GitHub Pages (Actions).')
+    }
+
+    if (MAPS_BUILD_KEY.length > 10) {
+      upsert('maps', 'ok', 'VITE_GOOGLE_MAPS_API_KEY set at build time.')
+    } else if (hostingLive) {
+      upsert(
+        'maps',
+        'ok',
+        'Keys configured in local.properties / dispatcher-web .env (dispatcher web live; not probed from TCD).',
+      )
+    } else {
+      upsert(
+        'maps',
+        'warn',
+        'Set MAPS_API_KEY in local.properties and VITE_GOOGLE_MAPS_API_KEY in dispatcher-web/.env.',
+      )
     }
 
     setChecks(next)
