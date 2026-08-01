@@ -3,9 +3,11 @@ package com.truckmgmt.shared
 object TruckMgmtConstants {
     const val APP_NAME = "TruckMgmt"
     const val DRIVER_LABEL = "Company device — TruckMgmt Driver"
-    const R2_UPLOAD_PATH = "/upload/"
-    const R2_MEDIA_PATH = "/media/"
-    const R2_DOWNLOADS_PATH = "/downloads/"
+
+    const val R2_MEDIA_PROXY_BASE_URL = "https://truckmgmt-media-proxy.neuereatec.workers.dev"
+    const val R2_UPLOAD_PATH = "/upload/"
+    const val R2_MEDIA_PATH = "/media/"
+    const val R2_DOWNLOADS_PATH = "/downloads/"
 
     /** PUT {R2_MEDIA_PROXY_BASE_URL}/upload/{key} — upload blob to R2 via Worker. */
     fun r2UploadUrl(objectKey: String) = "$R2_MEDIA_PROXY_BASE_URL$R2_UPLOAD_PATH$objectKey"
