@@ -9,6 +9,7 @@ function AuthedApp() {
   if (loading) {
     return (
       <div className="auth-shell">
+        <div className="auth-grid-bg" aria-hidden />
         <p className="muted">Loading TruckMgmt…</p>
       </div>
     )

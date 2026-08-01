@@ -34,7 +34,6 @@ export const COL = {
   commands: 'commands',
 } as const
 
-export const MAPS_API_KEY = import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? ''
 export const R2_BASE = import.meta.env.VITE_R2_BASE_URL ?? 'https://truckmgmt-media-proxy.neuereatec.workers.dev'
 
 /** PUT — upload blob to R2 via Worker (canonical storage; not Firebase Storage). */
