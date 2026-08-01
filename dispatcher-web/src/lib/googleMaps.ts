@@ -24,7 +24,11 @@ export function loadGoogleMaps(): Promise<typeof google> {
       if (typeof google !== 'undefined' && google.maps?.Map) {
         resolve(google)
       } else {
-        reject(new GoogleMapsLoadError('Google Maps failed to initialize. Check API key referrers and billing.'))
+        reject(
+          new GoogleMapsLoadError(
+            'Maps failed to load. Check API key HTTP referrers for this site (truckmgmt-dev.web.app). Google Maps Platform still requires a linked Cloud billing account for quota even when Maps APIs are enabled.',
+          ),
+        )
       }
     }
     script.onerror = () =>
