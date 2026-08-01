@@ -3,8 +3,13 @@
     <color name="brand_primary">#1B4F72</color>
     <color name="brand_primary_dark">#0E2F45</color>
     <color name="brand_accent">#E67E22</color>
+    <color name="brand_accent_light">#FAD7A0</color>
     <color name="surface">#FFFFFF</color>
     <color name="app_bg">#F4F7FA</color>
     <color name="text_primary">#1A1A1A</color>
+    <color name="text_secondary">#5D6D7E</color>
     <color name="danger_red">#C0392B</color>
+    <color name="status_active_bg">#E8F6F3</color>
+    <color name="status_active_text">#117A65</color>
+    <color name="card_stroke">#D5DBDB</color>
 </resources>

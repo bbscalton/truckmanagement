@@ -2,16 +2,12 @@ package com.truckmgmt.customer
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
+import android.view.View
 import android.widget.Toast
-import androidx.appcompat.app.ActionBarDrawerToggle
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import androidx.core.view.GravityCompat
-import androidx.drawerlayout.widget.DrawerLayout
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -19,13 +15,15 @@ import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
 import com.google.android.gms.maps.model.MarkerOptions
-import com.google.android.material.navigation.NavigationView
+import com.google.android.material.textfield.TextInputEditText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.ListenerRegistration
+import com.truckmgmt.customer.databinding.ActivityCustomerHomeBinding
 import com.truckmgmt.shared.DeliveryStatusLabels
 import com.truckmgmt.shared.FleetIdGenerator
 import com.truckmgmt.shared.TruckMgmtConstants
@@ -35,66 +33,65 @@ import kotlinx.coroutines.tasks.await
 class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
+    private lateinit var binding: ActivityCustomerHomeBinding
     private var fleetId: String? = null
     private var map: GoogleMap? = null
     private var deliveryListener: ListenerRegistration? = null
     private var truckListener: ListenerRegistration? = null
-    private lateinit var infoText: TextView
     private var activeDeliveryId: String? = null
     private var activeDriverId: String? = null
+    private var activeStatus: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_customer_home)
+        binding = ActivityCustomerHomeBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val toolbar = findViewById<Toolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        val drawer = findViewById<DrawerLayout>(R.id.drawerLayout)
-        val nav = findViewById<NavigationView>(R.id.navView)
-        infoText = findViewById(R.id.infoText)
+        setSupportActionBar(binding.toolbar)
 
-        ActionBarDrawerToggle(this, drawer, toolbar, R.string.app_name, R.string.app_name).also {
-            drawer.addDrawerListener(it)
-            it.syncState()
+        binding.btnSchedule.setOnClickListener {
+            startActivity(Intent(this, ScheduleDeliveryActivity::class.java))
+        }
+        binding.btnTrackTruck.setOnClickListener { listenActiveTruck() }
+        binding.btnLinkFleet.setOnClickListener { showLinkFleetDialog() }
+        binding.btnSignOut.setOnClickListener {
+            auth.signOut()
+            startActivity(Intent(this, AuthActivity::class.java))
+            finish()
         }
 
-        nav.setNavigationItemSelectedListener { item ->
-            drawer.closeDrawer(GravityCompat.START)
+        binding.bottomNav.setOnItemSelectedListener { item ->
             when (item.itemId) {
-                R.id.nav_map -> Unit
-                R.id.nav_schedule -> startActivity(Intent(this, ScheduleDeliveryActivity::class.java))
-                R.id.nav_deliveries -> loadMyDeliveries()
+                R.id.nav_home -> showHomePanel()
                 R.id.nav_track -> listenActiveTruck()
                 R.id.nav_pay -> enterPayment()
-                R.id.nav_chat -> {
-                    val id = activeDeliveryId
-                    if (id == null) Toast.makeText(this, "No active delivery", Toast.LENGTH_SHORT).show()
-                    else startActivity(Intent(this, TripChatActivity::class.java).putExtra("deliveryId", id))
-                }
-                R.id.nav_profile -> showProfileOrLinkFleet()
-                R.id.nav_logout -> {
-                    auth.signOut()
-                    startActivity(Intent(this, AuthActivity::class.java))
-                    finish()
-                }
+                R.id.nav_chat -> openChat()
+                R.id.nav_profile -> showProfilePanel()
             }
             true
         }
 
-        findViewById<Button>(R.id.btnSchedule).setOnClickListener {
-            startActivity(Intent(this, ScheduleDeliveryActivity::class.java))
-        }
-        findViewById<Button>(R.id.btnPay).setOnClickListener { enterPayment() }
-
         (supportFragmentManager.findFragmentById(R.id.mapFragment) as SupportMapFragment).getMapAsync(this)
         lifecycleScope.launch { loadProfile() }
+    }
+
+    private fun showHomePanel() {
+        binding.statusCard.visibility = View.VISIBLE
+        binding.profilePanel.visibility = View.GONE
+        binding.bottomNav.menu.findItem(R.id.nav_home).isChecked = true
+    }
+
+    private fun showProfilePanel() {
+        binding.statusCard.visibility = View.GONE
+        binding.profilePanel.visibility = View.VISIBLE
+        updateProfileTexts()
     }
 
     private suspend fun loadProfile() {
         val uid = auth.currentUser?.uid ?: return
         val profile = db.collection(TruckMgmtConstants.COL_CUSTOMER_PROFILES).document(uid).get().await()
         fleetId = profile.getString("primaryFleetId")?.takeIf { it.isNotBlank() }
-        infoText.text = fleetDisplayText()
+        updateHomeTexts()
         if (fleetId != null) {
             listenMyDeliveries()
         } else {
@@ -102,27 +99,32 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
-    private fun fleetDisplayText(): String {
-        val fleetLine = fleetId?.let { "Fleet: $it" } ?: "Fleet: not linked — tap Profile to enter your fleet ID"
-        return "$fleetLine\nSigned in as ${auth.currentUser?.email}"
+    private fun updateHomeTexts() {
+        val email = auth.currentUser?.email.orEmpty()
+        val name = email.substringBefore("@").replaceFirstChar { it.uppercase() }
+        binding.greetingText.text = getString(R.string.home_greeting) + ", $name"
+        binding.fleetText.text = fleetId?.let { getString(R.string.home_fleet_linked, it) }
+            ?: getString(R.string.home_no_fleet)
     }
 
-    private fun showProfileOrLinkFleet() {
-        infoText.text = fleetDisplayText()
-        if (fleetId == null) showLinkFleetDialog()
+    private fun updateProfileTexts() {
+        binding.profileEmailText.text = getString(R.string.profile_signed_in, auth.currentUser?.email.orEmpty())
+        binding.profileFleetText.text = fleetId?.let { getString(R.string.home_fleet_linked, it) }
+            ?: getString(R.string.home_no_fleet)
     }
 
     private fun showLinkFleetDialog() {
-        val input = EditText(this).apply {
-            hint = "Fleet ID (6 characters)"
+        val input = TextInputEditText(this).apply {
+            hint = getString(R.string.profile_fleet_hint)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
             setText(fleetId.orEmpty())
+            setPadding(48, 32, 48, 32)
         }
         AlertDialog.Builder(this)
-            .setTitle("Link to fleet")
-            .setMessage("Enter the fleet ID from your dispatcher (Settings → Fleet ID).")
+            .setTitle(R.string.profile_link_fleet)
+            .setMessage(R.string.profile_link_fleet_message)
             .setView(input)
-            .setPositiveButton("Link") { _, _ ->
+            .setPositiveButton(R.string.profile_link) { _, _ ->
                 val uid = auth.currentUser?.uid ?: return@setPositiveButton
                 val email = auth.currentUser?.email ?: return@setPositiveButton
                 lifecycleScope.launch {
@@ -130,9 +132,14 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                         fleetId = FleetLinkHelper.linkCustomerToFleet(
                             db, uid, email, FleetIdGenerator.normalize(input.text.toString()),
                         )
-                        infoText.text = fleetDisplayText()
+                        updateHomeTexts()
+                        updateProfileTexts()
                         listenMyDeliveries()
-                        Toast.makeText(this@CustomerHomeActivity, "Linked to fleet $fleetId", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(
+                            this@CustomerHomeActivity,
+                            getString(R.string.profile_linked_toast, fleetId),
+                            Toast.LENGTH_SHORT,
+                        ).show()
                     } catch (e: FleetNotFoundException) {
                         Toast.makeText(this@CustomerHomeActivity, e.message, Toast.LENGTH_LONG).show()
                     } catch (e: FirebaseFirestoreException) {
@@ -147,7 +154,7 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                     }
                 }
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 
@@ -155,6 +162,9 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
         map = googleMap
         googleMap.mapType = GoogleMap.MAP_TYPE_SATELLITE
         googleMap.uiSettings.isZoomControlsEnabled = true
+        googleMap.uiSettings.isCompassEnabled = true
+        val default = LatLng(39.8283, -98.5795)
+        googleMap.moveCamera(CameraUpdateFactory.newLatLngZoom(default, 4f))
     }
 
     private fun listenMyDeliveries() {
@@ -172,30 +182,41 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                         s == TruckMgmtConstants.STATUS_PAYMENT_PENDING
                 }
                 if (active == null) {
-                    infoText.text = "No active delivery"
                     activeDeliveryId = null
                     activeDriverId = null
+                    activeStatus = null
+                    binding.statusChip.text = getString(R.string.home_no_active_delivery)
+                    binding.statusChip.setChipBackgroundColorResource(R.color.app_bg)
+                    binding.statusChip.setTextColor(ContextCompat.getColor(this, R.color.text_secondary))
+                    binding.deliveryDetailText.visibility = View.GONE
                     return@addSnapshotListener
                 }
                 activeDeliveryId = active.id
                 activeDriverId = active.getString("assignedDriverId")
-                val status = active.getString("status") ?: ""
-                infoText.text = "Delivery ${active.id.take(8)}\n$status"
-                if (DeliveryStatusLabels.customerCanSeeTruck(status)) {
-                    listenActiveTruck()
+                activeStatus = active.getString("status") ?: ""
+                binding.statusChip.text = getString(R.string.home_active_delivery)
+                binding.statusChip.setChipBackgroundColorResource(R.color.status_active_bg)
+                binding.statusChip.setTextColor(ContextCompat.getColor(this, R.color.status_active_text))
+                binding.deliveryDetailText.visibility = View.VISIBLE
+                binding.deliveryDetailText.text = buildString {
+                    append(getString(R.string.home_delivery_id, active.id.take(8)))
+                    append("\n")
+                    append(getString(R.string.home_status, activeStatus))
+                    active.getString("pickupAddress")?.let { append("\n↑ $it") }
+                    active.getString("dropoffAddress")?.let { append("\n↓ $it") }
+                }
+                if (DeliveryStatusLabels.customerCanSeeTruck(activeStatus!!)) {
+                    listenActiveTruck(showToast = false)
                 }
             }
     }
 
-    private fun loadMyDeliveries() {
-        listenMyDeliveries()
-        Toast.makeText(this, "Showing latest delivery status", Toast.LENGTH_SHORT).show()
-    }
-
-    private fun listenActiveTruck() {
+    private fun listenActiveTruck(showToast: Boolean = true) {
+        binding.bottomNav.menu.findItem(R.id.nav_track).isChecked = true
+        showHomePanel()
         val fid = fleetId ?: return
         val driverId = activeDriverId ?: run {
-            Toast.makeText(this, "Truck visible after driver accepts", Toast.LENGTH_SHORT).show()
+            if (showToast) Toast.makeText(this, R.string.home_track_unavailable, Toast.LENGTH_SHORT).show()
             return
         }
         truckListener?.remove()
@@ -210,30 +231,43 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                     MarkerOptions()
                         .position(pos)
                         .title("Your truck")
-                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE))
+                        .icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE)),
                 )
                 map?.moveCamera(CameraUpdateFactory.newLatLngZoom(pos, 14f))
             }
     }
 
-    private fun enterPayment() {
-        val fid = fleetId ?: return
-        val deliveryId = activeDeliveryId ?: run {
-            Toast.makeText(this, "No delivery to pay for", Toast.LENGTH_SHORT).show()
+    private fun openChat() {
+        binding.bottomNav.menu.findItem(R.id.nav_chat).isChecked = true
+        val id = activeDeliveryId
+        if (id == null) {
+            Toast.makeText(this, R.string.chat_no_active, Toast.LENGTH_SHORT).show()
             return
         }
-        val input = EditText(this).apply {
-            hint = "Amount paid"
+        startActivity(Intent(this, TripChatActivity::class.java).putExtra("deliveryId", id))
+    }
+
+    private fun enterPayment() {
+        binding.bottomNav.menu.findItem(R.id.nav_pay).isChecked = true
+        showHomePanel()
+        val fid = fleetId ?: return
+        val deliveryId = activeDeliveryId ?: run {
+            Toast.makeText(this, R.string.pay_no_delivery, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val input = TextInputEditText(this).apply {
+            hint = getString(R.string.pay_amount_hint)
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setPadding(48, 32, 48, 32)
         }
         AlertDialog.Builder(this)
-            .setTitle("Enter amount paid")
-            .setMessage("Agree price in chat/call first. Driver must accept for dispatcher to see it.")
+            .setTitle(R.string.pay_title)
+            .setMessage(R.string.pay_message)
             .setView(input)
-            .setPositiveButton("Submit") { _, _ ->
+            .setPositiveButton(R.string.pay_submit) { _, _ ->
                 val amount = input.text.toString().toDoubleOrNull()
                 if (amount == null) {
-                    Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, R.string.pay_invalid_amount, Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
                 db.collection(TruckMgmtConstants.COL_FLEETS).document(fid)
@@ -247,14 +281,14 @@ class CustomerHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                             "acceptedByDriver" to false,
                             "visibleToDispatcher" to false,
                             "createdAt" to FieldValue.serverTimestamp(),
-                        )
+                        ),
                     )
                 db.collection(TruckMgmtConstants.COL_FLEETS).document(fid)
                     .collection(TruckMgmtConstants.COL_DELIVERIES).document(deliveryId)
                     .update("status", TruckMgmtConstants.STATUS_PAYMENT_PENDING)
-                Toast.makeText(this, "Waiting for driver to accept payment", Toast.LENGTH_LONG).show()
+                Toast.makeText(this, R.string.pay_waiting, Toast.LENGTH_LONG).show()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(android.R.string.cancel, null)
             .show()
     }
 

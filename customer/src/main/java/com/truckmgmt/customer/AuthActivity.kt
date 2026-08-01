@@ -2,11 +2,10 @@ package com.truckmgmt.customer
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Button
-import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.truckmgmt.customer.databinding.ActivityAuthBinding
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.FirebaseFirestoreException
@@ -18,19 +17,20 @@ import kotlinx.coroutines.tasks.await
 class AuthActivity : AppCompatActivity() {
     private val auth = FirebaseAuth.getInstance()
     private val db = FirebaseFirestore.getInstance()
+    private lateinit var binding: ActivityAuthBinding
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_auth)
+        binding = ActivityAuthBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
-        val email = findViewById<EditText>(R.id.inputEmail)
-        val password = findViewById<EditText>(R.id.inputPassword)
-        val fleetId = findViewById<EditText>(R.id.inputFleetId)
-
-        findViewById<Button>(R.id.btnLogin).setOnClickListener {
+        binding.btnLogin.setOnClickListener {
             lifecycleScope.launch {
                 try {
-                    auth.signInWithEmailAndPassword(email.text.toString().trim(), password.text.toString()).await()
+                    auth.signInWithEmailAndPassword(
+                        binding.inputEmail.text.toString().trim(),
+                        binding.inputPassword.text.toString(),
+                    ).await()
                     goHome()
                 } catch (e: Exception) {
                     Toast.makeText(this@AuthActivity, e.message, Toast.LENGTH_LONG).show()
@@ -38,19 +38,27 @@ class AuthActivity : AppCompatActivity() {
             }
         }
 
-        findViewById<Button>(R.id.btnRegister).setOnClickListener {
+        binding.btnRegister.setOnClickListener {
             lifecycleScope.launch {
-                val emailStr = email.text.toString().trim()
-                val pass = password.text.toString()
-                val fid = FleetIdGenerator.normalize(fleetId.text.toString())
+                val emailStr = binding.inputEmail.text.toString().trim()
+                val pass = binding.inputPassword.text.toString()
+                val fid = FleetIdGenerator.normalize(binding.inputFleetId.text.toString())
                 if (fid.isBlank()) {
-                    Toast.makeText(this@AuthActivity, "Fleet ID is required — ask your dispatcher for the 6-character code", Toast.LENGTH_LONG).show()
+                    Toast.makeText(
+                        this@AuthActivity,
+                        "Fleet ID is required — ask your dispatcher for the 6-character code",
+                        Toast.LENGTH_LONG,
+                    ).show()
                     return@launch
                 }
                 try {
                     val fleetSnap = db.collection(TruckMgmtConstants.COL_FLEETS).document(fid).get().await()
                     if (!fleetSnap.exists()) {
-                        Toast.makeText(this@AuthActivity, "Fleet \"$fid\" not found. Check the ID from your dispatcher.", Toast.LENGTH_LONG).show()
+                        Toast.makeText(
+                            this@AuthActivity,
+                            "Fleet \"$fid\" not found. Check the ID from your dispatcher.",
+                            Toast.LENGTH_LONG,
+                        ).show()
                         return@launch
                     }
                     val result = auth.createUserWithEmailAndPassword(emailStr, pass).await()

@@ -57,6 +57,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation("androidx.constraintlayout:constraintlayout:2.2.0")
+    implementation("androidx.coordinatorlayout:coordinatorlayout:1.2.0")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
-    implementation("androidx.drawerlayout:drawerlayout:1.2.0")
+    implementation("com.google.android.libraries.places:places:4.1.0")
 }

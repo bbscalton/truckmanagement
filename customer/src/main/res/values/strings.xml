@@ -1,1 +1,85 @@
-﻿<resources><string name="app_name">TruckMgmt Customer</string></resources>
+﻿<resources>
+    <string name="app_name">TruckMgmt Customer</string>
+
+    <!-- Auth -->
+    <string name="auth_title">Welcome back</string>
+    <string name="auth_subtitle">Schedule deliveries and track your truck in real time.</string>
+    <string name="auth_email_hint">Email</string>
+    <string name="auth_password_hint">Password</string>
+    <string name="auth_fleet_hint">Fleet ID (6 characters)</string>
+    <string name="auth_fleet_helper">Ask your dispatcher for this code</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_register">Create account</string>
+
+    <!-- Home -->
+    <string name="home_greeting">Hello</string>
+    <string name="home_no_fleet">Link your fleet to get started</string>
+    <string name="home_fleet_linked">Fleet %1$s</string>
+    <string name="home_no_active_delivery">No active delivery</string>
+    <string name="home_active_delivery">Delivery in progress</string>
+    <string name="home_delivery_id">Request %1$s</string>
+    <string name="home_status">Status: %1$s</string>
+    <string name="home_schedule_cta">Schedule delivery</string>
+    <string name="home_track_truck">Track truck</string>
+    <string name="home_track_unavailable">Truck visible after driver accepts</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_track">Track</string>
+    <string name="nav_pay">Pay</string>
+    <string name="nav_chat">Chat</string>
+    <string name="nav_profile">Profile</string>
+
+    <!-- Profile / fleet -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_signed_in">Signed in as %1$s</string>
+    <string name="profile_link_fleet">Link fleet</string>
+    <string name="profile_link_fleet_message">Enter the 6-character fleet ID from your dispatcher.</string>
+    <string name="profile_fleet_hint">Fleet ID</string>
+    <string name="profile_link">Link</string>
+    <string name="profile_sign_out">Sign out</string>
+    <string name="profile_linked_toast">Linked to fleet %1$s</string>
+
+    <!-- Payment -->
+    <string name="pay_title">Confirm payment</string>
+    <string name="pay_message">Agree on the price in chat or by phone first. Your driver must accept before the dispatcher sees it.</string>
+    <string name="pay_amount_hint">Amount paid</string>
+    <string name="pay_submit">Submit payment</string>
+    <string name="pay_no_delivery">No delivery to pay for</string>
+    <string name="pay_waiting">Waiting for driver to accept payment</string>
+    <string name="pay_invalid_amount">Enter a valid amount</string>
+
+    <!-- Schedule wizard -->
+    <string name="schedule_title">Schedule delivery</string>
+    <string name="schedule_step_pickup">Pickup</string>
+    <string name="schedule_step_dropoff">Dropoff</string>
+    <string name="schedule_step_details">Details</string>
+    <string name="schedule_pickup_heading">Where should we pick up?</string>
+    <string name="schedule_dropoff_heading">Where are we delivering?</string>
+    <string name="schedule_details_heading">When and any notes?</string>
+    <string name="schedule_address_hint">Street address</string>
+    <string name="schedule_use_location">Use my location</string>
+    <string name="schedule_search_address">Search address</string>
+    <string name="schedule_pick_on_map">Drag pin or tap map</string>
+    <string name="schedule_when_hint">When (e.g. Tomorrow 2pm)</string>
+    <string name="schedule_notes_hint">Notes for driver (optional)</string>
+    <string name="schedule_next">Continue</string>
+    <string name="schedule_back">Back</string>
+    <string name="schedule_submit">Submit request</string>
+    <string name="schedule_review_pickup">Pickup: %1$s</string>
+    <string name="schedule_review_dropoff">Dropoff: %1$s</string>
+    <string name="schedule_review_when">When: %1$s</string>
+    <string name="schedule_address_required">Enter or select an address</string>
+    <string name="schedule_success">Request sent to dispatcher</string>
+    <string name="schedule_no_fleet">No fleet linked. Link your fleet from Profile.</string>
+
+    <!-- Location -->
+    <string name="location_permission_title">Location access</string>
+    <string name="location_permission_rationale">We use your location to fill pickup and dropoff addresses and help drivers find you.</string>
+    <string name="location_permission_denied">Location permission is required to use GPS</string>
+    <string name="location_fetching">Getting your location…</string>
+    <string name="location_error">Could not get location. Try search or tap the map.</string>
+    <string name="geocode_error">Could not resolve address for this point</string>
+    <string name="places_error">Address search unavailable</string>
+
+    <!-- Chat -->
+    <string name="chat_no_active">No active delivery to chat about</string>
+</resources>
