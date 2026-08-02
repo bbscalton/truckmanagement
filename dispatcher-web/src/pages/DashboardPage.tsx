@@ -20,6 +20,10 @@ import { useAuth } from '../AuthContext'
 import { auth, COL, db } from '../firebase'
 import { initFleetMap, type FleetMapHandle, type LatLng } from '../lib/fleetMap'
 import { IconCopy, IconLogout, IconMenu, NavIcon, type NavSection } from '../components/icons'
+import { ChatPanel } from '../components/ChatPanel'
+import { RequestAlertModal } from '../components/RequestAlertModal'
+import { useDeliveryRequestAlerts } from '../hooks/useDeliveryRequestAlerts'
+import type { DocumentSnapshot } from 'firebase/firestore'
 
 export type Section = NavSection
 
@@ -72,10 +76,6 @@ type ViewState =
       rows: Record<string, string>[]
     }
   | { kind: 'stats'; trips: number; revenue: number }
-  | {
-      kind: 'chat'
-      messages: { role: string; text: string }[]
-    }
   | { kind: 'settings'; fleetId: string; email: string; name: string }
   | { kind: 'pair' }
 
@@ -108,7 +108,6 @@ export function DashboardPage() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [view, setView] = useState<ViewState>({ kind: 'loading' })
   const [statusLine, setStatusLine] = useState('Connecting to fleet…')
-  const [chatInput, setChatInput] = useState('')
   const [pairName, setPairName] = useState('Driver')
   const [pairCode, setPairCode] = useState('')
   const [truckLabel, setTruckLabel] = useState('')
@@ -117,6 +116,27 @@ export function DashboardPage() {
   const [copied, setCopied] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
   const mapObj = useRef<FleetMapHandle | null>(null)
+
+  const assignRequestFromAlert = async (requestId: string, reqDoc: DocumentSnapshot) => {
+    if (!fleetId) return
+    const drivers = await getDocs(query(collection(db, COL.fleets, fleetId, COL.drivers), where('online', '==', true)))
+    const driver = drivers.docs[0]
+    if (!driver) {
+      setView({ kind: 'empty', title: 'No online drivers', hint: 'Nearest-driver function will retry after timeout.' })
+      setSection('requests')
+      return
+    }
+    const data = { ...reqDoc.data(), status: 'assigned', assignedDriverId: driver.id, requestId, updatedAt: serverTimestamp() }
+    const deliveryRef = doc(collection(db, COL.fleets, fleetId, COL.deliveries))
+    await setDoc(deliveryRef, data)
+    await updateDoc(reqDoc.ref, { status: 'assigned', deliveryId: deliveryRef.id, assignedDriverId: driver.id })
+    setSection('deliveries')
+  }
+
+  const { pending: pendingRequest, dismiss: dismissRequest, assign: assignPendingRequest } = useDeliveryRequestAlerts(
+    fleetId,
+    assignRequestFromAlert,
+  )
 
   const showMap = section === 'live_map' || section === 'playback' || section === 'stops'
   const mapPrimary = section === 'live_map'
@@ -402,18 +422,7 @@ export function DashboardPage() {
 
       if (section === 'chat') {
         setStatusLine('Fleet-wide messaging')
-        unsub = onSnapshot(
-          query(collection(db, COL.fleets, fleetId, COL.fleetChat), orderBy('createdAt', 'asc'), limit(100)),
-          (snap) => {
-            setView({
-              kind: 'chat',
-              messages: snap.docs.map((d) => ({
-                role: String(d.get('senderRole') ?? 'unknown'),
-                text: String(d.get('text') ?? ''),
-              })),
-            })
-          },
-        )
+        setView({ kind: 'summary', text: 'Chat with drivers — text, images, and voice notes.' })
         return
       }
 
@@ -520,17 +529,6 @@ export function DashboardPage() {
     window.setTimeout(() => setCopied(false), 2000)
   }
 
-  const sendChat = async () => {
-    if (!fleetId || !chatInput.trim()) return
-    await addDoc(collection(db, COL.fleets, fleetId, COL.fleetChat), {
-      text: chatInput.trim(),
-      senderUid: user?.uid,
-      senderRole: 'dispatcher',
-      createdAt: serverTimestamp(),
-    })
-    setChatInput('')
-  }
-
   const renderContent = () => {
     if (view.kind === 'loading') {
       return <div className="loading-shell">Loading…</div>
@@ -555,35 +553,6 @@ export function DashboardPage() {
           <div className="stat-card">
             <div className="label">Total revenue</div>
             <div className="value">${view.revenue.toLocaleString()}</div>
-          </div>
-        </div>
-      )
-    }
-    if (view.kind === 'chat') {
-      return (
-        <div className="panel-card chat-panel">
-          <div className="chat-messages">
-            {view.messages.length === 0 ? (
-              <EmptyBlock title="No messages yet" hint="Send the first message to your fleet." />
-            ) : (
-              view.messages.map((m, i) => (
-                <div key={i} className={`chat-bubble ${m.role}`}>
-                  <div className="role">{m.role}</div>
-                  {m.text}
-                </div>
-              ))
-            )}
-          </div>
-          <div className="chat-compose">
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder="Message drivers…"
-              onKeyDown={(e) => e.key === 'Enter' && void sendChat()}
-            />
-            <button className="btn-primary" onClick={() => void sendChat()}>
-              Send
-            </button>
           </div>
         </div>
       )
@@ -737,7 +706,11 @@ export function DashboardPage() {
 
         {!mapPrimary && (
           <section className="content-panel">
-            {renderContent()}
+            {section === 'chat' && fleetId ? (
+              <ChatPanel fleetId={fleetId} userUid={user?.uid} senderRole="dispatcher" />
+            ) : (
+              renderContent()
+            )}
             {section === 'requests' && view.kind === 'table' && (
               <div className="actions">
                 <button className="btn-primary" onClick={() => void assignFirstRequest()}>
@@ -748,6 +721,13 @@ export function DashboardPage() {
           </section>
         )}
       </main>
+      {pendingRequest && (
+        <RequestAlertModal
+          request={pendingRequest}
+          onAssign={() => void assignPendingRequest()}
+          onDismiss={dismissRequest}
+        />
+      )}
     </div>
   )
 }

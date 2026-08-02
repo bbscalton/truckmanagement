@@ -63,7 +63,13 @@ class DriverHomeActivity : AppCompatActivity(), OnMapReadyCallback {
                 R.id.nav_jobs -> loadJobs()
                 R.id.nav_arrive -> markArrived()
                 R.id.nav_deliver -> markDelivered()
-                R.id.nav_chat -> startActivity(Intent(this, FleetChatActivity::class.java))
+                R.id.nav_chat -> {
+                    if (activeDeliveryId != null) {
+                        startActivity(Intent(this, TripChatActivity::class.java).putExtra("deliveryId", activeDeliveryId))
+                    } else {
+                        startActivity(Intent(this, FleetChatActivity::class.java))
+                    }
+                }
                 R.id.nav_payments -> showAcceptPayment()
                 R.id.nav_online -> toggleOnline()
             }

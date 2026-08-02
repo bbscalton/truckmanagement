@@ -4,6 +4,8 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Bundle
 import android.view.View
 import android.widget.EditText
@@ -41,6 +43,8 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
     private var map: GoogleMap? = null
     private var driversListener: ListenerRegistration? = null
     private var stopsListener: ListenerRegistration? = null
+    private var requestsListener: ListenerRegistration? = null
+    private val seenRequestIds = mutableSetOf<String>()
     private lateinit var contentTitle: TextView
     private lateinit var contentBody: TextView
     private lateinit var statusLine: TextView
@@ -95,7 +99,55 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         mapFragment.getMapAsync(this)
 
         lifecycleScope.launch { loadFleet() }
+        listenNewRequests()
         showSection("live_map")
+    }
+
+    private fun playAlertSound() {
+        try {
+            val uri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
+            RingtoneManager.getRingtone(this, uri)?.play()
+        } catch (_: Exception) {
+        }
+    }
+
+    private fun listenNewRequests() {
+        val fid = fleetId
+        if (fid == null) {
+            lifecycleScope.launch {
+                kotlinx.coroutines.delay(500)
+                listenNewRequests()
+            }
+            return
+        }
+        requestsListener?.remove()
+        requestsListener = db.collection(TruckMgmtConstants.COL_FLEETS).document(fid)
+            .collection(TruckMgmtConstants.COL_DELIVERY_REQUESTS)
+            .addSnapshotListener { snap, _ ->
+                snap?.documentChanges?.filter { it.type == com.google.firebase.firestore.DocumentChange.Type.ADDED }
+                    ?.forEach { change ->
+                        val id = change.document.id
+                        if (seenRequestIds.add(id)) {
+                            showNewRequestAlert(change.document.id, change.document)
+                        }
+                    }
+            }
+    }
+
+    private fun showNewRequestAlert(requestId: String, doc: com.google.firebase.firestore.DocumentSnapshot) {
+        playAlertSound()
+        val pickup = doc.getString("pickupAddress") ?: "Pickup"
+        val dropoff = doc.getString("dropoffAddress") ?: "Dropoff"
+        AlertDialog.Builder(this)
+            .setTitle("New delivery request")
+            .setMessage("$pickup\n→\n$dropoff")
+            .setPositiveButton("Assign") { _, _ ->
+                lifecycleScope.launch { assignRequest(requestId) }
+            }
+            .setNegativeButton("Dismiss", null)
+            .setCancelable(false)
+            .show()
     }
 
     private suspend fun loadFleet() {
@@ -104,6 +156,7 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
         fleetId = profile.getString("primaryFleetId")
         listenDrivers()
         listenStops()
+        listenNewRequests()
     }
 
     private fun showSection(section: String) {
@@ -429,7 +482,7 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
                 // Keep stop markers if on stops; otherwise refresh truck markers
                 if (currentSection == "live_map") {
                     val online = snap?.documents?.count { it.getBoolean("online") == true } ?: 0
-                    val total = snap?.size ?: 0
+                    val total = snap?.size() ?: 0
                     statusLine.text = "$online of $total drivers online · Satellite live tracking"
                     gmap.clear()
                     snap?.documents?.forEach { d ->
@@ -494,6 +547,7 @@ class DashboardActivity : AppCompatActivity(), OnMapReadyCallback {
     override fun onDestroy() {
         driversListener?.remove()
         stopsListener?.remove()
+        requestsListener?.remove()
         super.onDestroy()
     }
 }

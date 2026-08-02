@@ -1,25 +1,23 @@
-package com.truckmgmt.customer
+package com.truckmgmt.driver
 
 import com.google.firebase.firestore.CollectionReference
 import com.truckmgmt.shared.TruckMgmtConstants
 import com.truckmgmt.shared.chat.BaseChatActivity
-import kotlinx.coroutines.tasks.await
 
 class TripChatActivity : BaseChatActivity() {
     private var fleetId: String? = null
     private var deliveryId: String? = null
+    private val prefs by lazy { getSharedPreferences(TruckMgmtConstants.PREFS_NAME, MODE_PRIVATE) }
 
     override fun chatTitle() = "Trip chat"
 
-    override fun senderRole() = "customer"
+    override fun senderRole() = "driver"
 
     override suspend fun ensureReady() {
         deliveryId = intent.getStringExtra("deliveryId")
             ?: throw IllegalStateException("Missing deliveryId")
-        val uid = auth.currentUser?.uid ?: throw IllegalStateException("Not signed in")
-        val profile = db.collection(TruckMgmtConstants.COL_CUSTOMER_PROFILES).document(uid).get().await()
-        fleetId = profile.getString("primaryFleetId")
-            ?: throw IllegalStateException("No fleet linked")
+        fleetId = prefs.getString(TruckMgmtConstants.PREF_FLEET_ID, null)
+            ?: throw IllegalStateException("Not paired")
     }
 
     override fun messagesCollection(): CollectionReference {

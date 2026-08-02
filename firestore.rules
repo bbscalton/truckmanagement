@@ -208,11 +208,16 @@ service cloud.firestore {
 
       match /fleetChat/{messageId} {
         allow read: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
-        allow create: if isFleetDispatcher(fleetId) || isFleetDriver(fleetId);
+        allow create: if (isFleetDispatcher(fleetId) || isFleetDriver(fleetId))
+          && request.resource.data.keys().hasAll(['type', 'text', 'senderRole', 'createdAt'])
+          && request.resource.data.type in ['text', 'image', 'audio'];
       }
 
       match /tripChat/{deliveryId}/messages/{messageId} {
-        allow read, create: if isFleetMember(fleetId);
+        allow read: if isFleetMember(fleetId);
+        allow create: if isFleetMember(fleetId)
+          && request.resource.data.keys().hasAll(['type', 'text', 'senderRole', 'createdAt'])
+          && request.resource.data.type in ['text', 'image', 'audio'];
       }
 
       match /commands/{commandId} {

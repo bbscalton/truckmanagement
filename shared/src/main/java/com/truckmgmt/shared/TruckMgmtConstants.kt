@@ -73,11 +73,29 @@ object TruckMgmtConstants {
     const val PREF_PERMISSIONS_GRANTED = "permissions_granted"
     const val PREF_ONLINE = "online"
 
+    // Chat message types
+    const val MSG_TYPE_TEXT = "text"
+    const val MSG_TYPE_IMAGE = "image"
+    const val MSG_TYPE_AUDIO = "audio"
+
     // Notifications
     const val CHANNEL_MONITORING = "truckmgmt_monitoring"
     const val CHANNEL_JOBS = "truckmgmt_jobs"
     const val CHANNEL_CHAT = "truckmgmt_chat"
+    const val CHANNEL_ALERTS = "truckmgmt_alerts"
     const val FGS_NOTIFICATION_ID = 7101
+    const val NOTIF_ID_CHAT_BASE = 7200
+    const val NOTIF_ID_REQUEST = 7300
+
+    // FCM data keys
+    const val FCM_TYPE = "type"
+    const val FCM_TYPE_NEW_REQUEST = "new_request"
+    const val FCM_TYPE_CHAT = "chat"
+    const val FCM_TYPE_DELIVERY = "delivery"
+    const val FCM_FLEET_ID = "fleetId"
+    const val FCM_REQUEST_ID = "requestId"
+    const val FCM_DELIVERY_ID = "deliveryId"
+    const val FCM_CHAT_SCOPE = "chatScope"
 
     const val ACTION_DEVICE_UNLOCK = "com.truckmgmt.driver.ACTION_DEVICE_UNLOCK"
     const val ACTION_STOP_RING = "com.truckmgmt.driver.ACTION_STOP_RING"
